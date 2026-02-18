@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+:root {
+  background-color: #2C241B;
+  /* Dark Woody Brown */
+  color: #Ede0d4;
+  /* Parchment / Off-white */
+}
+
+body {
+  margin: 0;
+  font-family: 'Inter', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
