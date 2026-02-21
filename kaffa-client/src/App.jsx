@@ -14,6 +14,32 @@ const categoryEmojis = {
   "Para Compartir": "🧀", "Sandwich y Wraps": "🥪", "Desgranados": "🌽",
 };
 
+const MENU_GROUPS = [
+  {
+    name: "Bebidas",
+    icon: "☕",
+    categories: [
+      "Base de Café", "Calientes", "Coladas", "Hervidos y Aromáticas",
+      "Frías de Café", "Jugos - Frappés - Malteadas", "Sodas Italianas",
+      "Limonadas Frapée", "Smoothies", "Funcionales", "Cervezas y Bebidas",
+      "Cocteles con Licor", "Cocteles sin Licor"
+    ]
+  },
+  {
+    name: "Comidas",
+    icon: "🍔",
+    categories: [
+      "Hamburguesas", "Picadas y Carnes", "Salchipapa", "Patacones",
+      "Para Compartir", "Sandwich y Wraps", "Desgranados"
+    ]
+  },
+  {
+    name: "Dulce y Panadería",
+    icon: "🥐",
+    categories: ["Tartas, Waffles y Más", "Hojaldrados", "Rellenos"]
+  }
+];
+
 // Intersection Observer hook for scroll-based animations
 function useOnScreen(options) {
   const ref = useRef(null);
@@ -82,7 +108,9 @@ function App() {
   const [includeTip, setIncludeTip] = useState(false);
   const [addedProductId, setAddedProductId] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [headerSolid, setHeaderSolid] = useState(false);
+  const [activeGroupName, setActiveGroupName] = useState(MENU_GROUPS[0].name);
   const categoryRef = useRef(null);
 
   useEffect(() => {
@@ -92,12 +120,20 @@ function App() {
   }, []);
 
   useEffect(() => {
-    Promise.all([getCategories(), getProducts()]).then(([catData, prodData]) => {
-      setCategories(catData);
-      setProducts(prodData);
-      if (catData.length > 0) setSelectedCategory(catData[0].id);
-      setTimeout(() => setIsLoading(false), 400);
-    });
+    Promise.all([getCategories(), getProducts()])
+      .then(([catData, prodData]) => {
+        setCategories(catData);
+        setProducts(prodData);
+        if (catData.length > 0) setSelectedCategory(catData[0].id);
+        setError(null);
+      })
+      .catch(err => {
+        console.error("Fetch error:", err);
+        setError("No se pudo conectar con el servidor. Verifica que el backend esté corriendo.");
+      })
+      .finally(() => {
+        setTimeout(() => setIsLoading(false), 400);
+      });
   }, []);
 
   const filteredProducts = searchTerm
@@ -289,28 +325,54 @@ function App() {
             <h2 className="text-[#c9a96e]/40 uppercase tracking-[0.3em] text-[10px] font-bold mb-4 text-center">
               Nuestro Menú
             </h2>
+
+            {/* Main Groups */}
+            <div className="flex justify-center gap-3 mb-6 overflow-x-auto pb-2 scrollbar-hide">
+              {MENU_GROUPS.map(group => (
+                <button
+                  key={group.name}
+                  onClick={() => {
+                    setActiveGroupName(group.name);
+                    const firstCat = categories.find(c => group.categories.includes(c.name));
+                    if (firstCat) setSelectedCategory(firstCat.id);
+                  }}
+                  className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all duration-300 min-w-[100px] border ${activeGroupName === group.name
+                    ? 'bg-gradient-to-br from-[#c9a96e]/20 to-[#8b5e35]/10 border-[#c9a96e]/40 shadow-lg shadow-[#8b5e35]/5 scale-105'
+                    : 'bg-[#1e1a14]/40 border-[#3a3024]/30 text-[#7a6e5d] hover:border-[#c9a96e]/20 hover:bg-[#1e1a14]'
+                    }`}
+                >
+                  <span className="text-2xl">{group.icon}</span>
+                  <span className={`text-xs font-bold tracking-wider uppercase ${activeGroupName === group.name ? 'text-[#e8c87a]' : ''}`}>{group.name}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* Sub-categories for Active Group */}
             <div className="relative flex items-center gap-2">
               <button onClick={() => scrollCategories(-1)} className="hidden md:flex flex-shrink-0 p-2.5 rounded-xl bg-[#1e1a14] border border-[#3a3024]/30 hover:border-[#c9a96e]/30 text-[#7a6e5d] hover:text-[#c9a96e] transition-all hover:shadow-lg hover:shadow-[#c9a96e]/5">
                 <ChevronLeft className="w-4 h-4" />
               </button>
-              <div ref={categoryRef} className="flex gap-2.5 overflow-x-auto pb-3 scrollbar-hide snap-x snap-mandatory">
-                {categories.map(cat => (
-                  <button key={cat.id} onClick={() => setSelectedCategory(cat.id)}
-                    className={`category-btn snap-center px-4 py-2.5 rounded-xl whitespace-nowrap text-sm font-semibold flex items-center gap-2 border ${selectedCategory === cat.id
-                      ? 'active bg-gradient-to-br from-[#c9a96e] to-[#8b5e35] border-[#c9a96e]/60 text-[#0f0c08] shadow-xl shadow-[#8b5e35]/30'
-                      : 'bg-[#1e1a14]/70 border-[#3a3024]/30 text-[#7a6e5d] hover:border-[#c9a96e]/20 hover:text-[#c9a96e] hover:bg-[#1e1a14]'}`}>
-                    <span className="text-base">{categoryEmojis[cat.name] || '📦'}</span>
-                    <span>{cat.name}</span>
-                  </button>
-                ))}
+              <div ref={categoryRef} className="flex gap-2.5 overflow-x-auto pb-3 scrollbar-hide snap-x snap-mandatory flex-1 justify-center">
+                {categories
+                  .filter(cat => MENU_GROUPS.find(g => g.name === activeGroupName)?.categories.includes(cat.name))
+                  .map(cat => (
+                    <button key={cat.id} onClick={() => setSelectedCategory(cat.id)}
+                      className={`category-btn snap-center px-4 py-2.5 rounded-xl whitespace-nowrap text-sm font-semibold flex items-center gap-2 border ${selectedCategory === cat.id
+                        ? 'active bg-gradient-to-br from-[#c9a96e] to-[#8b5e35] border-[#c9a96e]/60 text-[#0f0c08] shadow-xl shadow-[#8b5e35]/30'
+                        : 'bg-[#1e1a14]/70 border-[#3a3024]/30 text-[#7a6e5d] hover:border-[#c9a96e]/20 hover:text-[#c9a96e] hover:bg-[#1e1a14]'}`}>
+                      <span className="text-base">{categoryEmojis[cat.name] || '📦'}</span>
+                      <span>{cat.name}</span>
+                    </button>
+                  ))}
               </div>
               <button onClick={() => scrollCategories(1)} className="hidden md:flex flex-shrink-0 p-2.5 rounded-xl bg-[#1e1a14] border border-[#3a3024]/30 hover:border-[#c9a96e]/30 text-[#7a6e5d] hover:text-[#c9a96e] transition-all hover:shadow-lg hover:shadow-[#c9a96e]/5">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>
+
             {currentCat && (
               <div className="mt-4 text-center">
-                <p className="text-[#c9a96e]/50 text-sm">{categoryEmojis[currentCat.name]} {currentCat.description}</p>
+                <p className="text-[#c9a96e]/50 text-sm italic">{currentCat.description}</p>
               </div>
             )}
           </div>
@@ -321,12 +383,19 @@ function App() {
           <div className="mb-8 text-center"><h2 className="text-xl font-bold hero-title text-[#f0e6d2]">Resultados para "{searchTerm}"</h2><p className="text-[#7a6e5d] text-sm mt-1">{filteredProducts.length} productos encontrados</p></div>
         )}
 
-        {/* Loading Skeleton */}
+        {/* Loading / Error / Content */}
         {isLoading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="rounded-2xl overflow-hidden"><div className="aspect-[4/3] skeleton rounded-t-2xl" /><div className="bg-[#1e1a14] p-5 space-y-3"><div className="h-5 w-2/3 skeleton rounded-lg" /><div className="h-3 w-full skeleton rounded-lg" /><div className="h-10 w-full skeleton rounded-lg mt-3" /></div></div>
             ))}
+          </div>
+        ) : error ? (
+          <div className="text-center py-24 bg-[#1e1a14]/50 rounded-3xl border border-[#c94a4a]/20">
+            <div className="text-6xl mb-4">⚠️</div>
+            <h3 className="text-xl font-bold text-[#f0e6d2] mb-2">Error de conexión</h3>
+            <p className="text-[#7a6e5d] max-w-md mx-auto px-6">{error}</p>
+            <button onClick={() => window.location.reload()} className="mt-6 px-6 py-2 bg-[#c9a96e] text-[#0f0c08] rounded-xl font-bold hover:bg-[#d4b478] transition-colors">Reintentar</button>
           </div>
         ) : filteredProducts.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">

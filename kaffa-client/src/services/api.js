@@ -1,5 +1,6 @@
-// Dynamically use the current hostname so it works from any device on the network
-const API_URL = `http://${window.location.hostname}:8080/api`;
+// Use environment variable for production, fallback to dynamic hostname for local device access
+const BACKEND_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8080`;
+const API_URL = `${BACKEND_URL}/api`;
 
 export async function getCategories() {
     const res = await fetch(`${API_URL}/categorias`);

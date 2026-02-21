@@ -57,6 +57,13 @@
 			<version>3.45.3.0</version>
 		</dependency>
 
+		<!-- PostgreSQL (para producción en Render/Neon) -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<scope>runtime</scope>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
