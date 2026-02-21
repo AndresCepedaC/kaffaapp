@@ -4,6 +4,8 @@ import kaffaapp.kaffa_server.dao.OrderDAO;
 import kaffaapp.kaffa_server.dao.ProductDAO;
 import kaffaapp.kaffa_server.dao.CategoryDAO;
 import kaffaapp.kaffa_server.model.Category;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
@@ -13,6 +15,7 @@ import java.util.List;
 
 @SpringBootApplication
 public class KaffaServerApplication {
+	private static final Logger logger = LoggerFactory.getLogger(KaffaServerApplication.class);
 
 	public static void main(String[] args) {
 		SpringApplication.run(KaffaServerApplication.class, args);
@@ -21,16 +24,28 @@ public class KaffaServerApplication {
 	@Bean
 	CommandLineRunner init(ProductDAO productDAO, OrderDAO orderDAO, CategoryDAO categoryDAO) {
 		return args -> {
-			categoryDAO.createTableIfNotExists();
-			productDAO.createTableIfNotExists();
-			orderDAO.createTableIfNotExists();
+			try {
+				logger.info("Initializing database tables...");
+				categoryDAO.createTableIfNotExists();
+				productDAO.createTableIfNotExists();
+				orderDAO.createTableIfNotExists();
+				logger.info("Tables checked.");
 
-			if (categoryDAO.isEmpty()) {
-				seedCategories(categoryDAO);
-			}
+				if (categoryDAO.isEmpty()) {
+					logger.info("Seeding categories...");
+					seedCategories(categoryDAO);
+					logger.info("Categories seeded.");
+				}
 
-			if (productDAO.isEmpty()) {
-				seedProducts(productDAO, categoryDAO);
+				if (productDAO.isEmpty()) {
+					logger.info("Seeding products...");
+					seedProducts(productDAO, categoryDAO);
+					logger.info("Products seeded.");
+				}
+				logger.info("Database initialization complete.");
+			} catch (Exception e) {
+				logger.error("Error during database initialization: {}", e.getMessage(), e);
+				// We don't rethrow to allow the application to start even if seeding fails
 			}
 		};
 	}
