@@ -7,6 +7,8 @@ import kaffaapp.kaffa_server.model.Product;
 import org.springframework.web.bind.annotation.*;
 
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.List;
 
 @CrossOrigin(origins = "*", allowedHeaders = "*", methods = { RequestMethod.GET, RequestMethod.POST,
@@ -23,6 +25,14 @@ public class ApiController {
         this.productDAO = productDAO;
         this.orderDAO = orderDAO;
         this.categoryDAO = categoryDAO;
+    }
+
+    @GetMapping("/health")
+    public Map<String, String> health() {
+        Map<String, String> status = new HashMap<>();
+        status.put("status", "UP");
+        status.put("message", "Kaffa Server is running");
+        return status;
     }
 
     @GetMapping(value = "/productos", produces = "application/json")
