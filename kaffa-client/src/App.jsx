@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { ShoppingCart } from 'lucide-react';
-import { createOrder } from './services/api';
+import { ShoppingCart, Printer, Receipt, CheckCircle2, Loader2 } from 'lucide-react';
+import { createOrder, payOrder, printInternal, printCustomer } from './services/api';
 import { MENU_GROUPS } from './constants';
 
 // Hooks
@@ -15,12 +15,19 @@ import ProductGrid from './components/ProductGrid';
 import CartDrawer from './components/CartDrawer';
 import Chatbot from './components/Chatbot';
 import SEOHead from './components/SEOHead';
+import OrderDashboard from './components/OrderDashboard';
+import AdminGate, { logoutAdmin } from './components/AdminGate';
 
 function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [headerSolid, setHeaderSolid] = useState(false);
   const [activeGroupName, setActiveGroupName] = useState(MENU_GROUPS[0].name);
-  const [isOrderSuccessful, setIsOrderSuccessful] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false);
+
+  // Success modal state
+  const [successOrder, setSuccessOrder] = useState(null);
+  const [printingInternal, setPrintingInternal] = useState(false);
+  const [printingCustomer, setPrintingCustomer] = useState(false);
 
   // Custom hooks for state management
   const {
@@ -43,7 +50,6 @@ function App() {
 
   const [notification, setNotification] = useState(null);
 
-  // Auto-dismiss notification after 5 seconds
   useEffect(() => {
     if (notification) {
       const timer = setTimeout(() => setNotification(null), 5000);
@@ -51,38 +57,81 @@ function App() {
     }
   }, [notification]);
 
-  // Checkout handler
-  const handleCheckout = useCallback(async () => {
+  // ─── Checkout with payment ──────────────────────────────────
+  const handleCheckout = useCallback(async (paymentData) => {
     if (cart.length === 0) return;
+
     const order = {
       items: cart.map(item => ({ product: item.product, quantity: item.quantity })),
       tipOrDiscountPercent: includeTip ? 10.0 : 0.0,
       tip: includeTip,
       notes,
     };
+
     try {
+      // 1) Create order (PENDING)
       const result = await createOrder(order);
       const createdOrder = result.order;
-      const printed = result.printed;
 
-      // Show printer feedback
-      if (printed) {
-        setNotification({ type: 'success', message: `✅ Pedido #${createdOrder.id} creado y comanda impresa.` });
-      } else {
-        setNotification({ type: 'warning', message: `⚠️ Pedido #${createdOrder.id} creado. No se pudo imprimir la comanda.` });
+      // 2) Process payment immediately → PAID
+      let paidOrder;
+      try {
+        paidOrder = await payOrder(createdOrder.id, paymentData);
+      } catch (payErr) {
+        console.error('Payment failed:', payErr);
+        paidOrder = createdOrder; // fallback — stays PENDING
+        setNotification({ type: 'warning', message: `⚠️ Pedido #${createdOrder.id} creado pero el pago falló. Puedes reintentar desde el dashboard.` });
       }
 
-      // Clear cart and show success modal
+      // 3) Clear cart, close drawer, show success modal
       clearCart();
       setIsCartOpen(false);
-      setIsOrderSuccessful(true);
+      setSuccessOrder(paidOrder);
+
     } catch (err) {
       console.error(err);
       setNotification({ type: 'error', message: '❌ Error al crear el pedido. Inténtalo de nuevo.' });
     }
-  }, [cart, includeTip, notes, cartSubtotal, tipAmount, finalTotal, clearCart]);
+  }, [cart, includeTip, notes, clearCart]);
 
-  // Dynamic SEO based on selected category
+  // ─── Print handlers from success modal ─────────────────────
+  const handlePrintInternal = useCallback(async () => {
+    if (!successOrder) return;
+    setPrintingInternal(true);
+    try {
+      const res = await printInternal(successOrder.id);
+      setNotification({
+        type: res.printed ? 'success' : 'warning',
+        message: res.printed
+          ? '✅ Pre-Factura enviada a impresora'
+          : '⚠️ Impresora no disponible',
+      });
+    } catch {
+      setNotification({ type: 'error', message: '❌ Error al imprimir pre-factura' });
+    } finally {
+      setPrintingInternal(false);
+    }
+  }, [successOrder]);
+
+  const handlePrintCustomer = useCallback(async () => {
+    if (!successOrder) return;
+    setPrintingCustomer(true);
+    try {
+      const res = await printCustomer(successOrder.id);
+      setNotification({
+        type: res.printed ? 'success' : 'warning',
+        message: res.printed
+          ? '✅ Factura cliente enviada a impresora'
+          : '⚠️ Impresora no disponible',
+      });
+    } catch {
+      setNotification({ type: 'error', message: '❌ Error al imprimir factura cliente' });
+    } finally {
+      setPrintingCustomer(false);
+    }
+  }, [successOrder]);
+
+  // Dynamic SEO
   const currentCategory = useMemo(
     () => categories.find(c => c.id === selectedCategory),
     [categories, selectedCategory]
@@ -100,6 +149,12 @@ function App() {
     }
     return 'Kaffa La Aldea - Tu cafetería artesanal favorita. Café de origen, cocina artesanal, cocteles premium, waffles, hamburguesas y más.';
   }, [currentCategory]);
+
+  // Payment method display
+  const getPaymentLabel = (method) => {
+    const map = { CASH: '💵 Efectivo', BANK: '🏦 Banco', SPLIT: '➗ Dividido' };
+    return map[method] || method || '';
+  };
 
   return (
     <div className="min-h-screen bg-[#0f0c08] text-[#f0e6d2] font-sans selection:bg-[#8b5e35] selection:text-white">
@@ -171,33 +226,38 @@ function App() {
         cartItemCount={cartItemCount}
         isCartOpen={isCartOpen}
         setIsCartOpen={setIsCartOpen}
+        showDashboard={showDashboard}
+        setShowDashboard={setShowDashboard}
       />
 
-      <main className="pt-20 pb-28 max-w-6xl mx-auto px-4 body-font">
-        {/* Hero & Marquee */}
-        {!searchTerm && <HeroBanner />}
-
-        {/* Category Navigation */}
-        {!searchTerm && (
-          <CategoryNav
-            categories={categories}
-            selectedCategory={selectedCategory}
-            setSelectedCategory={setSelectedCategory}
-            activeGroupName={activeGroupName}
-            setActiveGroupName={setActiveGroupName}
+      {showDashboard ? (
+        <main className="pt-20 pb-28 body-font">
+          <AdminGate onBack={() => setShowDashboard(false)}>
+            <OrderDashboard onBack={() => { logoutAdmin(); setShowDashboard(false); }} />
+          </AdminGate>
+        </main>
+      ) : (
+        <main className="pt-20 pb-28 max-w-6xl mx-auto px-4 body-font">
+          {!searchTerm && <HeroBanner />}
+          {!searchTerm && (
+            <CategoryNav
+              categories={categories}
+              selectedCategory={selectedCategory}
+              setSelectedCategory={setSelectedCategory}
+              activeGroupName={activeGroupName}
+              setActiveGroupName={setActiveGroupName}
+            />
+          )}
+          <ProductGrid
+            products={filteredProducts}
+            addToCart={addToCart}
+            addedProductId={addedProductId}
+            isLoading={isLoading}
+            error={error}
+            searchTerm={searchTerm}
           />
-        )}
-
-        {/* Product Grid */}
-        <ProductGrid
-          products={filteredProducts}
-          addToCart={addToCart}
-          addedProductId={addedProductId}
-          isLoading={isLoading}
-          error={error}
-          searchTerm={searchTerm}
-        />
-      </main>
+        </main>
+      )}
 
       {/* Floating Cart Button (Mobile) */}
       {cartItemCount > 0 && !isCartOpen && (
@@ -237,7 +297,7 @@ function App() {
       {/* Virtual Assistant / Chatbot */}
       <Chatbot />
 
-      {/* Toast Notification (Printer & Order Feedback) */}
+      {/* Toast Notification */}
       {notification && (
         <div
           className="fixed top-24 left-1/2 -translate-x-1/2 z-[60] max-w-md w-[90vw] bounce-in"
@@ -281,24 +341,53 @@ function App() {
         </div>
       )}
 
-      {/* Floating Success Modal */}
-      {isOrderSuccessful && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#0f0c08]/80 backdrop-blur-sm transition-opacity">
+      {/* ─── Success Modal with Print Buttons ──────────────── */}
+      {successOrder && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-[#0f0c08]/80 backdrop-blur-sm">
           <div className="bg-gradient-to-br from-[#1e1a14] to-[#0f0c08] border border-[#c9a96e]/30 rounded-2xl p-8 max-w-sm w-full text-center shadow-[0_0_50px_rgba(201,169,110,0.15)] bounce-in">
-            <div className="w-20 h-20 bg-gradient-to-br from-[#c9a96e]/20 to-[#8b5e35]/10 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#c9a96e]/30">
-              <svg className="w-10 h-10 text-[#c9a96e]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
-              </svg>
+            {/* Success Icon */}
+            <div className="w-20 h-20 bg-gradient-to-br from-[#4ade80]/15 to-[#22c55e]/5 rounded-full flex items-center justify-center mx-auto mb-5 border border-[#4ade80]/25">
+              <CheckCircle2 className="w-10 h-10 text-[#4ade80]" />
             </div>
-            <h2 className="text-2xl font-bold font-playfair text-[#c9a96e] mb-3">¡Pedido Confirmado!</h2>
-            <p className="text-[#a89f91] mb-8 font-inter leading-relaxed">
-              Muchas gracias por hacer tu pedido, te lo traeremos lo antes posible.
+
+            <h2 className="text-2xl font-bold hero-title text-[#e8c87a] mb-1">
+              ¡Pedido #{successOrder.id} Pagado!
+            </h2>
+
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <span className="text-sm text-[#7a6e5d]">{getPaymentLabel(successOrder.paymentMethod)}</span>
+            </div>
+
+            <p className="text-3xl font-bold text-[#f0e6d2] mb-6">
+              ${Math.round(successOrder.total || 0).toLocaleString()}
             </p>
+
+            {/* Print Buttons */}
+            <div className="space-y-2 mb-6">
+              <button
+                onClick={handlePrintInternal}
+                disabled={printingInternal}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-[#c9a96e]/20 bg-[#1e1a14] text-[#c9a96e] hover:bg-[#c9a96e]/10 hover:border-[#c9a96e]/35 transition-all text-sm font-semibold disabled:opacity-40"
+              >
+                {printingInternal ? <Loader2 className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />}
+                🖨️ Imprimir Pre-Factura (Cocina)
+              </button>
+              <button
+                onClick={handlePrintCustomer}
+                disabled={printingCustomer}
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-[#c9a96e]/20 bg-[#1e1a14] text-[#c9a96e] hover:bg-[#c9a96e]/10 hover:border-[#c9a96e]/35 transition-all text-sm font-semibold disabled:opacity-40"
+              >
+                {printingCustomer ? <Loader2 className="w-4 h-4 animate-spin" /> : <Receipt className="w-4 h-4" />}
+                🧾 Imprimir Factura Cliente
+              </button>
+            </div>
+
+            {/* Close button */}
             <button
-              onClick={() => setIsOrderSuccessful(false)}
+              onClick={() => setSuccessOrder(null)}
               className="w-full bg-gradient-to-r from-[#c9a96e] to-[#8b5e35] text-[#0f0c08] font-bold py-3.5 px-6 rounded-xl hover:scale-[1.02] active:scale-95 transition-all shadow-lg shadow-[#8b5e35]/20 outline-none"
             >
-              Volver al menú
+              ✅ Finalizar y Nuevo Pedido
             </button>
           </div>
         </div>

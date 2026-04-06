@@ -2,27 +2,47 @@ package kaffaapp.kaffa_server.dao;
 
 import kaffaapp.kaffa_server.model.Category;
 import kaffaapp.kaffa_server.model.Product;
-import org.springframework.stereotype.Component;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.stereotype.Repository;
 
-import javax.sql.DataSource;
-import java.sql.*;
-import java.util.ArrayList;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 
-@Component
+@Repository
 public class ProductDAO {
 
-    private final DataSource dataSource;
+    private final JdbcTemplate jdbcTemplate;
 
-    public ProductDAO(DataSource dataSource) {
-        this.dataSource = dataSource;
+    public ProductDAO(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
-    private Connection getConnection() throws SQLException {
-        return dataSource.getConnection();
-    }
+    private final RowMapper<Product> rowMapper = (rs, rowNum) -> {
+        Category cat = null;
+        int catId = rs.getInt("category_id");
+        if (catId > 0) {
+            cat = new Category();
+            cat.setId(catId);
+            cat.setName(rs.getString("category_name"));
+            cat.setDescription(rs.getString("category_desc"));
+        }
 
-    public void createTableIfNotExists() throws SQLException {
+        return new Product(
+                rs.getInt("id"),
+                rs.getString("name"),
+                rs.getString("description"),
+                rs.getDouble("price"),
+                cat,
+                rs.getInt("active") == 1,
+                rs.getString("image_url")
+        );
+    };
+
+    public void createTableIfNotExists() {
         String sql = """
                 CREATE TABLE IF NOT EXISTS product (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -34,120 +54,67 @@ public class ProductDAO {
                     image_url TEXT
                 )
                 """;
-        try (Connection c = getConnection();
-                Statement st = c.createStatement()) {
-            st.execute(sql);
-        }
+        jdbcTemplate.execute(sql);
     }
 
-    public boolean isEmpty() throws SQLException {
+    public boolean isEmpty() {
         String sql = "SELECT COUNT(*) FROM product";
-        try (Connection c = getConnection();
-                Statement st = c.createStatement();
-                ResultSet rs = st.executeQuery(sql)) {
-            return rs.next() && rs.getInt(1) == 0;
-        }
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class);
+        return count != null && count == 0;
     }
 
-    public void insertRaw(String name, String description, double price, int categoryId, String imageUrl)
-            throws SQLException {
+    public void insertRaw(String name, String description, double price, int categoryId, String imageUrl) {
         String sql = "INSERT INTO product(name, description, price, category_id, active, image_url) VALUES(?,?,?,?,1,?)";
-        try (Connection c = getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, name);
-            ps.setString(2, description);
-            ps.setDouble(3, price);
-            ps.setInt(4, categoryId);
-            ps.setString(5, imageUrl);
-            ps.executeUpdate();
-        }
+        jdbcTemplate.update(sql, name, description, price, categoryId, imageUrl);
     }
 
-    public List<Product> findAll() throws SQLException {
-        List<Product> list = new ArrayList<>();
+    public List<Product> findAll() {
         String sql = """
                 SELECT p.id, p.name, p.description, p.price, p.category_id, p.active, p.image_url,
                        c.name as category_name, c.description as category_desc
                 FROM product p
                 LEFT JOIN category c ON p.category_id = c.id
                 """;
-        try (Connection c = getConnection();
-                Statement st = c.createStatement();
-                ResultSet rs = st.executeQuery(sql)) {
-
-            while (rs.next()) {
-                Category cat = null;
-                int catId = rs.getInt("category_id");
-                if (catId > 0) {
-                    cat = new Category();
-                    cat.setId(catId);
-                    cat.setName(rs.getString("category_name"));
-                    cat.setDescription(rs.getString("category_desc"));
-                }
-
-                Product p = new Product(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getString("description"),
-                        rs.getDouble("price"),
-                        cat,
-                        rs.getInt("active") == 1,
-                        rs.getString("image_url"));
-                list.add(p);
-            }
-        }
-        return list;
+        return jdbcTemplate.query(sql, rowMapper);
     }
 
-    public Product insert(Product product) throws SQLException {
+    public Product insert(Product product) {
         String sql = "INSERT INTO product(name, description, price, category_id, active, image_url) VALUES(?,?,?,?,?,?)";
-        try (Connection c = getConnection();
-                PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+        KeyHolder keyHolder = new GeneratedKeyHolder();
 
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, product.getName());
             ps.setString(2, product.getDescription());
             ps.setDouble(3, product.getPrice());
             ps.setInt(4, product.getCategory() != null ? product.getCategory().getId() : 0);
             ps.setInt(5, product.isActive() ? 1 : 0);
             ps.setString(6, product.getImageUrl());
+            return ps;
+        }, keyHolder);
 
-            ps.executeUpdate();
-
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) {
-                    product.setId(rs.getInt(1));
-                }
-            }
+        if (keyHolder.getKey() != null) {
+            product.setId(keyHolder.getKey().intValue());
         }
         return product;
     }
 
-    public Product update(Product product) throws SQLException {
+    public Product update(Product product) {
         String sql = "UPDATE product SET name = ?, description = ?, price = ?, category_id = ?, active = ?, image_url = ? WHERE id = ?";
-        try (Connection c = getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
-
-            ps.setString(1, product.getName());
-            ps.setString(2, product.getDescription());
-            ps.setDouble(3, product.getPrice());
-            ps.setInt(4, product.getCategory() != null ? product.getCategory().getId() : 0);
-            ps.setInt(5, product.isActive() ? 1 : 0);
-            ps.setString(6, product.getImageUrl());
-            ps.setInt(7, product.getId());
-
-            ps.executeUpdate();
-        }
+        jdbcTemplate.update(sql,
+                product.getName(),
+                product.getDescription(),
+                product.getPrice(),
+                product.getCategory() != null ? product.getCategory().getId() : 0,
+                product.isActive() ? 1 : 0,
+                product.getImageUrl(),
+                product.getId());
         return product;
     }
 
-    public void delete(int id) throws SQLException {
+    public void delete(int id) {
         String sql = "DELETE FROM product WHERE id = ?";
-        try (Connection c = getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
-
-            ps.setInt(1, id);
-            ps.executeUpdate();
-        }
+        jdbcTemplate.update(sql, id);
     }
 
 }

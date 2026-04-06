@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from 'react';
-import { ShoppingCart, X, Plus, Minus, Trash2, Sparkles } from 'lucide-react';
+import { ShoppingCart, X, Plus, Minus, Trash2, Sparkles, Banknote, Building2, Split } from 'lucide-react';
 import { categoryEmojis } from '../constants';
 import { getRecommendations } from '../services/api';
 
@@ -54,7 +54,6 @@ function CartItem({ item, updateQuantity, removeFromCart }) {
   );
 }
 
-// Cross-selling recommendation section
 function CrossSellSection({ cart, addToCart }) {
   const [recommendations, setRecommendations] = useState([]);
 
@@ -114,6 +113,138 @@ function CrossSellSection({ cart, addToCart }) {
   );
 }
 
+// ─── Payment Method Selector ─────────────────────────────────
+
+function PaymentSelector({ finalTotal, onConfirm, onCancel }) {
+  const [method, setMethod] = useState(null);
+  const [cashAmount, setCashAmount] = useState('');
+  const [bankAmount, setBankAmount] = useState('');
+
+  const splitValid = method === 'SPLIT'
+    ? (parseFloat(cashAmount || 0) + parseFloat(bankAmount || 0)) >= finalTotal - 1
+      && parseFloat(cashAmount || 0) >= 0
+      && parseFloat(bankAmount || 0) >= 0
+    : true;
+
+  const canConfirm = method && (method !== 'SPLIT' || splitValid);
+
+  const handleConfirm = () => {
+    if (!canConfirm) return;
+    onConfirm({
+      paymentMethod: method,
+      amountCash: method === 'SPLIT' ? parseFloat(cashAmount) : undefined,
+      amountBank: method === 'SPLIT' ? parseFloat(bankAmount) : undefined,
+    });
+  };
+
+  // Auto-fill the other field when one changes in split mode
+  const handleCashChange = (val) => {
+    setCashAmount(val);
+    const numVal = parseFloat(val || 0);
+    if (numVal >= 0 && numVal <= finalTotal) {
+      setBankAmount(Math.round(finalTotal - numVal).toString());
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="text-center">
+        <p className="text-[10px] uppercase tracking-widest text-[#7a6e5d] font-bold mb-1">Método de Pago</p>
+        <p className="text-2xl font-bold hero-title bg-gradient-to-r from-[#e8c87a] to-[#c9a96e] bg-clip-text text-transparent">
+          ${Math.round(finalTotal).toLocaleString()}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        {[
+          { id: 'CASH', icon: Banknote, label: 'Efectivo', emoji: '💵' },
+          { id: 'BANK', icon: Building2, label: 'Banco', emoji: '🏦' },
+          { id: 'SPLIT', icon: Split, label: 'Dividido', emoji: '➗' },
+        ].map(opt => (
+          <button
+            key={opt.id}
+            onClick={() => setMethod(opt.id)}
+            className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border transition-all duration-300 ${
+              method === opt.id
+                ? 'bg-gradient-to-br from-[#c9a96e]/15 to-[#8b5e35]/10 border-[#c9a96e]/40 shadow-lg shadow-[#c9a96e]/10'
+                : 'bg-[#141008] border-[#3a3024]/20 hover:border-[#3a3024]/40'
+            }`}
+          >
+            <span className="text-xl">{opt.emoji}</span>
+            <span className={`text-[10px] font-bold uppercase tracking-wider ${
+              method === opt.id ? 'text-[#c9a96e]' : 'text-[#7a6e5d]'
+            }`}>
+              {opt.label}
+            </span>
+          </button>
+        ))}
+      </div>
+
+      {/* Split inputs */}
+      {method === 'SPLIT' && (
+        <div className="space-y-2 bg-[#141008] rounded-xl p-3 border border-[#3a3024]/20 bounce-in">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#7a6e5d] w-16">💵 Efectivo</span>
+            <div className="flex-1 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7a6e5d] text-sm">$</span>
+              <input
+                type="number"
+                value={cashAmount}
+                onChange={e => handleCashChange(e.target.value)}
+                className="w-full bg-[#1e1a14] border border-[#3a3024]/30 rounded-lg py-2 pl-7 pr-3 text-[#f0e6d2] text-sm font-bold outline-none focus:border-[#c9a96e]/30 transition-colors"
+                placeholder="0"
+                min="0"
+              />
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-[#7a6e5d] w-16">🏦 Banco</span>
+            <div className="flex-1 relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-[#7a6e5d] text-sm">$</span>
+              <input
+                type="number"
+                value={bankAmount}
+                onChange={e => setBankAmount(e.target.value)}
+                className="w-full bg-[#1e1a14] border border-[#3a3024]/30 rounded-lg py-2 pl-7 pr-3 text-[#f0e6d2] text-sm font-bold outline-none focus:border-[#c9a96e]/30 transition-colors"
+                placeholder="0"
+                min="0"
+              />
+            </div>
+          </div>
+          {method === 'SPLIT' && cashAmount && bankAmount && (
+            <div className={`text-xs text-center font-semibold mt-1 ${splitValid ? 'text-[#4ade80]' : 'text-[#f87171]'}`}>
+              Total: ${(parseFloat(cashAmount || 0) + parseFloat(bankAmount || 0)).toLocaleString()}
+              {splitValid ? ' ✓' : ` ≠ $${Math.round(finalTotal).toLocaleString()}`}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div className="flex gap-2">
+        <button
+          onClick={onCancel}
+          className="flex-1 py-3 rounded-xl border border-[#3a3024]/20 text-[#7a6e5d] hover:bg-[#1e1a14] transition-all text-sm font-semibold"
+        >
+          Volver
+        </button>
+        <button
+          onClick={handleConfirm}
+          disabled={!canConfirm}
+          className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all duration-300 ${
+            canConfirm
+              ? 'bg-gradient-to-r from-[#c9a96e] to-[#8b5e35] text-[#0f0c08] shadow-lg shadow-[#8b5e35]/30 active:scale-[0.97]'
+              : 'bg-[#1e1a14] text-[#5a4835] cursor-not-allowed'
+          }`}
+        >
+          Confirmar Pago
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main CartDrawer ─────────────────────────────────────────
+
 function CartDrawer({
   isCartOpen,
   setIsCartOpen,
@@ -130,18 +261,30 @@ function CartDrawer({
   addToCart,
   handleCheckout,
 }) {
+  const [showPayment, setShowPayment] = useState(false);
+
+  // Reset payment on cart close
+  useEffect(() => {
+    if (!isCartOpen) setShowPayment(false);
+  }, [isCartOpen]);
+
   if (!isCartOpen) return null;
+
+  const handlePaymentConfirm = (paymentData) => {
+    setShowPayment(false);
+    handleCheckout(paymentData);
+  };
 
   return (
     <>
-      {/* Backdrop - Gestalt: Figure/Ground - darkens background to elevate cart */}
+      {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/75 backdrop-blur-md z-40"
         onClick={() => setIsCartOpen(false)}
         aria-label="Cerrar carrito"
       />
 
-      {/* Cart Panel - Gestalt: Figure/Ground - elevated surface with strong borders and glow */}
+      {/* Cart Panel */}
       <div
         className="fixed top-0 right-0 h-full w-full max-w-md z-50 shadow-2xl flex flex-col cart-slide"
         style={{
@@ -191,10 +334,10 @@ function CartDrawer({
           )}
         </div>
 
-        {/* Cross-selling section */}
-        {cart.length > 0 && <CrossSellSection cart={cart} addToCart={addToCart} />}
+        {/* Cross-selling */}
+        {cart.length > 0 && !showPayment && <CrossSellSection cart={cart} addToCart={addToCart} />}
 
-        {/* Checkout Footer - Gestalt: Figure/Ground - checkout area visually elevated */}
+        {/* Checkout Footer */}
         {cart.length > 0 && (
           <div
             className="p-5 space-y-4"
@@ -204,54 +347,63 @@ function CartDrawer({
               boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
             }}
           >
-            <div>
-              <label className="block text-[#7a6e5d] text-[10px] font-bold uppercase tracking-widest mb-2">
-                Notas / Mesa
-              </label>
-              <textarea
-                id="cart-notes"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                className="w-full bg-[#141008] border border-[#3a3024]/20 rounded-xl p-3 text-[#f0e6d2] placeholder-[#5a4835] focus:outline-none focus:border-[#c9a96e]/30 transition-all text-sm resize-none body-font"
-                placeholder="Ej: Mesa 5, sin azúcar..."
-                rows="2"
-              />
-            </div>
-            <div className="space-y-2 py-2 border-t border-[#3a3024]/15">
-              <div className="flex justify-between text-[#7a6e5d] text-sm">
-                <span>Subtotal</span>
-                <span>${cartSubtotal.toLocaleString()}</span>
-              </div>
-              <div className="flex justify-between items-center">
-                <label className="flex items-center gap-2 cursor-pointer text-[#f0e6d2] hover:text-[#c9a96e] transition-colors select-none">
-                  <input
-                    type="checkbox"
-                    checked={includeTip}
-                    onChange={(e) => setIncludeTip(e.target.checked)}
-                    className="w-4 h-4 rounded border-[#3a3024] bg-[#141008] accent-[#c9a96e]"
+            {!showPayment ? (
+              <>
+                <div>
+                  <label className="block text-[#7a6e5d] text-[10px] font-bold uppercase tracking-widest mb-2">
+                    Notas / Mesa
+                  </label>
+                  <textarea
+                    id="cart-notes"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    className="w-full bg-[#141008] border border-[#3a3024]/20 rounded-xl p-3 text-[#f0e6d2] placeholder-[#5a4835] focus:outline-none focus:border-[#c9a96e]/30 transition-all text-sm resize-none body-font"
+                    placeholder="Ej: Mesa 5, sin azúcar..."
+                    rows="2"
                   />
-                  <span className="text-sm">Propina (10%)</span>
-                </label>
-                <span className={`text-sm font-bold ${includeTip ? 'text-[#c9a96e]' : 'text-[#5a4835]'}`}>
-                  +${tipAmount.toLocaleString()}
-                </span>
-              </div>
-            </div>
-            <div className="flex justify-between items-center pt-3 border-t border-[#3a3024]/20">
-              <span className="text-[#7a6e5d] uppercase text-[10px] tracking-widest font-bold">Total</span>
-              <span className="text-3xl font-bold hero-title bg-gradient-to-r from-[#e8c87a] to-[#c9a96e] bg-clip-text text-transparent">
-                ${finalTotal.toLocaleString()}
-              </span>
-            </div>
+                </div>
+                <div className="space-y-2 py-2 border-t border-[#3a3024]/15">
+                  <div className="flex justify-between text-[#7a6e5d] text-sm">
+                    <span>Subtotal</span>
+                    <span>${cartSubtotal.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <label className="flex items-center gap-2 cursor-pointer text-[#f0e6d2] hover:text-[#c9a96e] transition-colors select-none">
+                      <input
+                        type="checkbox"
+                        checked={includeTip}
+                        onChange={(e) => setIncludeTip(e.target.checked)}
+                        className="w-4 h-4 rounded border-[#3a3024] bg-[#141008] accent-[#c9a96e]"
+                      />
+                      <span className="text-sm">Propina (10%)</span>
+                    </label>
+                    <span className={`text-sm font-bold ${includeTip ? 'text-[#c9a96e]' : 'text-[#5a4835]'}`}>
+                      +${tipAmount.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center pt-3 border-t border-[#3a3024]/20">
+                  <span className="text-[#7a6e5d] uppercase text-[10px] tracking-widest font-bold">Total</span>
+                  <span className="text-3xl font-bold hero-title bg-gradient-to-r from-[#e8c87a] to-[#c9a96e] bg-clip-text text-transparent">
+                    ${finalTotal.toLocaleString()}
+                  </span>
+                </div>
 
-            {/* Checkout CTA - Gestalt: Figure/Ground - glowing, prominent button */}
-            <button
-              id="checkout-btn"
-              onClick={handleCheckout}
-              className="w-full bg-gradient-to-r from-[#c9a96e] to-[#8b5e35] hover:from-[#d4b478] hover:to-[#9b6e45] text-[#0f0c08] py-4 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 shadow-xl shadow-[#8b5e35]/30 active:scale-[0.97] border border-[#c9a96e]/40 flex items-center justify-center gap-2 text-sm pulse-glow"
-            >
-              Confirmar y Enviar a WhatsApp
-            </button>
+                <button
+                  id="checkout-btn"
+                  onClick={() => setShowPayment(true)}
+                  className="w-full bg-gradient-to-r from-[#c9a96e] to-[#8b5e35] hover:from-[#d4b478] hover:to-[#9b6e45] text-[#0f0c08] py-4 rounded-xl font-bold uppercase tracking-wider transition-all duration-300 shadow-xl shadow-[#8b5e35]/30 active:scale-[0.97] border border-[#c9a96e]/40 flex items-center justify-center gap-2 text-sm pulse-glow"
+                >
+                  Hacer Pedido
+                </button>
+              </>
+            ) : (
+              <PaymentSelector
+                finalTotal={finalTotal}
+                onConfirm={handlePaymentConfirm}
+                onCancel={() => setShowPayment(false)}
+              />
+            )}
           </div>
         )}
       </div>

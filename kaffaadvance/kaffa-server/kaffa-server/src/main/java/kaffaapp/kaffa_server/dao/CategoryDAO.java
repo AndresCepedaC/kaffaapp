@@ -1,27 +1,31 @@
 package kaffaapp.kaffa_server.dao;
 
 import kaffaapp.kaffa_server.model.Category;
-import org.springframework.stereotype.Component;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
+import org.springframework.jdbc.support.GeneratedKeyHolder;
+import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.stereotype.Repository;
 
-import javax.sql.DataSource;
-import java.sql.*;
-import java.util.ArrayList;
+import java.sql.PreparedStatement;
+import java.sql.Statement;
 import java.util.List;
 
-@Component
+@Repository
 public class CategoryDAO {
 
-    private final DataSource dataSource;
+    private final JdbcTemplate jdbcTemplate;
 
-    public CategoryDAO(DataSource dataSource) {
-        this.dataSource = dataSource;
+    public CategoryDAO(JdbcTemplate jdbcTemplate) {
+        this.jdbcTemplate = jdbcTemplate;
     }
 
-    private Connection getConnection() throws SQLException {
-        return dataSource.getConnection();
-    }
+    private final RowMapper<Category> rowMapper = (rs, rowNum) -> new Category(
+            rs.getInt("id"),
+            rs.getString("name"),
+            rs.getString("description"));
 
-    public void createTableIfNotExists() throws SQLException {
+    public void createTableIfNotExists() {
         String sql = """
                 CREATE TABLE IF NOT EXISTS category (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -29,87 +33,50 @@ public class CategoryDAO {
                     description TEXT
                 )
                 """;
-        try (Connection c = getConnection();
-                Statement st = c.createStatement()) {
-            st.execute(sql);
-        }
+        jdbcTemplate.execute(sql);
     }
 
-    public List<Category> findAll() throws SQLException {
-        List<Category> list = new ArrayList<>();
+    public List<Category> findAll() {
         String sql = "SELECT id, name, description FROM category";
-        try (Connection c = getConnection();
-                Statement st = c.createStatement();
-                ResultSet rs = st.executeQuery(sql)) {
-            while (rs.next()) {
-                list.add(new Category(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getString("description")));
-            }
-        }
-        return list;
+        return jdbcTemplate.query(sql, rowMapper);
     }
 
-    public Category findById(int id) throws SQLException {
+    public Category findById(int id) {
         String sql = "SELECT id, name, description FROM category WHERE id = ?";
-        try (Connection c = getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (rs.next()) {
-                    return new Category(
-                            rs.getInt("id"),
-                            rs.getString("name"),
-                            rs.getString("description"));
-                }
-            }
-        }
-        return null;
+        List<Category> results = jdbcTemplate.query(sql, rowMapper, id);
+        return results.isEmpty() ? null : results.get(0);
     }
 
-    public Category insert(Category category) throws SQLException {
-        String sql = "INSERT INTO category(name, description) VALUES(?,?)";
-        try (Connection c = getConnection();
-                PreparedStatement ps = c.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+    public Category insert(Category category) {
+        String sql = "INSERT INTO category(name, description) VALUES(?, ?)";
+        KeyHolder keyHolder = new GeneratedKeyHolder();
+
+        jdbcTemplate.update(connection -> {
+            PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, category.getName());
             ps.setString(2, category.getDescription());
-            ps.executeUpdate();
-            try (ResultSet rs = ps.getGeneratedKeys()) {
-                if (rs.next()) {
-                    category.setId(rs.getInt(1));
-                }
-            }
+            return ps;
+        }, keyHolder);
+
+        if (keyHolder.getKey() != null) {
+            category.setId(keyHolder.getKey().intValue());
         }
         return category;
     }
 
-    public void update(Category category) throws SQLException {
+    public void update(Category category) {
         String sql = "UPDATE category SET name = ?, description = ? WHERE id = ?";
-        try (Connection c = getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setString(1, category.getName());
-            ps.setString(2, category.getDescription());
-            ps.setInt(3, category.getId());
-            ps.executeUpdate();
-        }
+        jdbcTemplate.update(sql, category.getName(), category.getDescription(), category.getId());
     }
 
-    public void delete(int id) throws SQLException {
+    public void delete(int id) {
         String sql = "DELETE FROM category WHERE id = ?";
-        try (Connection c = getConnection();
-                PreparedStatement ps = c.prepareStatement(sql)) {
-            ps.setInt(1, id);
-            ps.executeUpdate();
-        }
+        jdbcTemplate.update(sql, id);
     }
 
-    public boolean isEmpty() throws SQLException {
+    public boolean isEmpty() {
         String sql = "SELECT COUNT(*) FROM category";
-        try (Connection c = getConnection();
-                Statement st = c.createStatement();
-                ResultSet rs = st.executeQuery(sql)) {
-            return rs.next() && rs.getInt(1) == 0;
-        }
+        Integer count = jdbcTemplate.queryForObject(sql, Integer.class);
+        return count != null && count == 0;
     }
 }

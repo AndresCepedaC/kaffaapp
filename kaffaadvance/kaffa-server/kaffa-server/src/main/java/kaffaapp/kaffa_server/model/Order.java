@@ -14,6 +14,12 @@ public class Order {
     private Double tipOrDiscountPercent;
     private boolean tip;
 
+    // ─── Payment fields ──────────────────────────────────────────
+    private String paymentMethod;   // CASH, BANK, SPLIT, null
+    private Double amountCash;      // Amount paid in cash
+    private Double amountBank;      // Amount paid by bank/transfer
+    private String status;          // PENDING, PAID
+
     public Order() {
     }
 
@@ -49,6 +55,20 @@ public class Order {
     public boolean isTip() { return tip; }
     public void setTip(boolean tip) { this.tip = tip; }
 
+    // ─── Payment getters/setters ─────────────────────────────────
+
+    public String getPaymentMethod() { return paymentMethod; }
+    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+
+    public Double getAmountCash() { return amountCash; }
+    public void setAmountCash(Double amountCash) { this.amountCash = amountCash; }
+
+    public Double getAmountBank() { return amountBank; }
+    public void setAmountBank(Double amountBank) { this.amountBank = amountBank; }
+
+    public String getStatus() { return status; }
+    public void setStatus(String status) { this.status = status; }
+
     public String buildDescription() {
         StringBuilder sb = new StringBuilder();
         sb.append("Pedido ").append(id).append(" - ").append(createdAt).append("\n");
@@ -71,6 +91,13 @@ public class Order {
         }
         if (notes != null && !notes.isBlank()) {
             sb.append("\nNotas: ").append(notes);
+        }
+        if (paymentMethod != null) {
+            sb.append("\nPago: ").append(paymentMethod);
+            if ("SPLIT".equals(paymentMethod)) {
+                sb.append(" (Efectivo: $").append(amountCash)
+                  .append(", Banco: $").append(amountBank).append(")");
+            }
         }
         return sb.toString();
     }

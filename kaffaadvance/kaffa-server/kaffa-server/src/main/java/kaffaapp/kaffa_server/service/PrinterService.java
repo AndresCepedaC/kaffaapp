@@ -90,6 +90,25 @@ public class PrinterService {
     }
 
     /**
+     * Prints a single ticket (INTERNAL or CUSTOMER) on demand.
+     */
+    public boolean printSingleTicket(Order order, String ticketType) {
+        if (!printerEnabled) {
+            logger.info("Printer disabled. Skipping {} print for Order #{}", ticketType, order.getId());
+            return false;
+        }
+        try {
+            byte[] ticket = buildTicket(order, ticketType);
+            sendToSpooler(ticket);
+            logger.info("✅ {} ticket sent to spooler for Order #{}", ticketType, order.getId());
+            return true;
+        } catch (Exception e) {
+            logger.warn("⚠️ Could not print {} ticket for Order #{}: {}", ticketType, order.getId(), e.getMessage());
+            return false;
+        }
+    }
+
+    /**
      * Builds both receipts into a single byte array with a cut in between.
      */
     private byte[] buildCombinedReceipts(Order order) throws Exception {
