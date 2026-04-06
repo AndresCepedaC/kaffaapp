@@ -79,36 +79,45 @@ public class OrderDAO {
             """;
 
         try (Connection c = getConnection()) {
-            c.setAutoCommit(false);
+            try {
+                c.setAutoCommit(false);
 
-            try (PreparedStatement psOrder =
-                         c.prepareStatement(sqlOrder, Statement.RETURN_GENERATED_KEYS)) {
-                psOrder.setString(1, order.getCreatedAt().toString());
-                psOrder.setDouble(2, order.getTotal());
-                psOrder.setString(3, order.getNotes());
-                psOrder.setDouble(4, percent);
-                psOrder.setInt(5, order.isTip() ? 1 : 0);
-                psOrder.executeUpdate();
+                try (PreparedStatement psOrder =
+                             c.prepareStatement(sqlOrder, Statement.RETURN_GENERATED_KEYS)) {
+                    psOrder.setString(1, order.getCreatedAt().toString());
+                    psOrder.setDouble(2, order.getTotal());
+                    psOrder.setString(3, order.getNotes());
+                    psOrder.setDouble(4, percent);
+                    psOrder.setInt(5, order.isTip() ? 1 : 0);
+                    psOrder.executeUpdate();
 
-                try (ResultSet rs = psOrder.getGeneratedKeys()) {
-                    if (rs.next()) {
-                        order.setId(rs.getInt(1));
+                    try (ResultSet rs = psOrder.getGeneratedKeys()) {
+                        if (rs.next()) {
+                            order.setId(rs.getInt(1));
+                        }
                     }
                 }
-            }
 
-            try (PreparedStatement psItem = c.prepareStatement(sqlItem)) {
-                for (ItemCart item : order.getItems()) {
-                    psItem.setInt(1, order.getId());
-                    psItem.setInt(2, item.getProduct().getId());
-                    psItem.setInt(3, item.getQuantity());
-                    psItem.setDouble(4, item.getProduct().getPrice());
-                    psItem.addBatch();
+                try (PreparedStatement psItem = c.prepareStatement(sqlItem)) {
+                    for (ItemCart item : order.getItems()) {
+                        psItem.setInt(1, order.getId());
+                        psItem.setInt(2, item.getProduct().getId());
+                        psItem.setInt(3, item.getQuantity());
+                        psItem.setDouble(4, item.getProduct().getPrice());
+                        psItem.addBatch();
+                    }
+                    psItem.executeBatch();
                 }
-                psItem.executeBatch();
-            }
 
-            c.commit();
+                c.commit();
+            } catch (SQLException e) {
+                try {
+                    c.rollback();
+                } catch (SQLException rollbackEx) {
+                    // Ignorar o loguear fallo de rollback
+                }
+                throw e;
+            }
         }
 
         return order;

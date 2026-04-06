@@ -1,6 +1,4 @@
-// Use environment variable for production, fallback to dynamic hostname for local device access
-const BACKEND_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:8080`;
-const API_URL = `${BACKEND_URL}/api`;
+const API_URL = '/api';
 
 export async function getCategories() {
     const res = await fetch(`${API_URL}/categorias`);
@@ -14,6 +12,11 @@ export async function getProducts() {
     return res.json();
 }
 
+/**
+ * Creates an order. Returns { order, printed } where:
+ * - order: the created Order object with ID, total, etc.
+ * - printed: boolean indicating if the thermal printer succeeded
+ */
 export async function createOrder(order) {
     const res = await fetch(`${API_URL}/orders`, {
         method: 'POST',
@@ -23,5 +26,21 @@ export async function createOrder(order) {
         body: JSON.stringify(order)
     });
     if (!res.ok) throw new Error("Failed to create order");
-    return res.json();
+    return res.json(); // { order: {...}, printed: true/false }
+}
+
+export async function getRecommendations(cartProductIds) {
+    try {
+        const res = await fetch(`${API_URL}/productos/recommendations`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(cartProductIds)
+        });
+        if (!res.ok) return [];
+        return res.json();
+    } catch {
+        return [];
+    }
 }

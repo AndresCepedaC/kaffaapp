@@ -1,0 +1,14 @@
+# Dependencias
+node_modules/
+
+# Sesión de WhatsApp (Seguridad)
+.wwebjs_auth/
+
+# Archivos de base de datos local
+*.db
+*.db-shm
+*.db-wal
+
+# Logs
+*.log
+

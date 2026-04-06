@@ -51,10 +51,7 @@ public class KaffaServerApplication {
 	}
 
 	private void seedCategories(CategoryDAO dao) throws Exception {
-		dao.insert(new Category(0, "Base de Café", "Americano, Espresso, Capuccinos..."));
-		dao.insert(new Category(0, "Calientes", "Chocolate, Milo, Té"));
-		dao.insert(new Category(0, "Coladas", "Tradicional, Plátano, Café y Milo"));
-		dao.insert(new Category(0, "Hervidos y Aromáticas", "Aromáticas, hervidos y canelazos"));
+		dao.insert(new Category(0, "Bebidas Calientes", "Cafés, chocolates, tés, coladas, aromáticas y más"));
 		dao.insert(new Category(0, "Frías de Café", "Cold brew, Granizados, Malteadas"));
 		dao.insert(new Category(0, "Jugos - Frappés - Malteadas", "Jugos naturales, frappés y malteadas"));
 		dao.insert(new Category(0, "Sodas Italianas", "Refrescantes sodas de frutas"));
@@ -82,10 +79,7 @@ public class KaffaServerApplication {
 		java.util.function.Function<String, Integer> getCatId = (name) -> cats.stream()
 				.filter(c -> c.getName().equals(name)).findFirst().map(Category::getId).orElse(0);
 
-		int catCafe = getCatId.apply("Base de Café");
-		int catCalientes = getCatId.apply("Calientes");
-		int catColadas = getCatId.apply("Coladas");
-		int catAromas = getCatId.apply("Hervidos y Aromáticas");
+		int catBebidasCalientes = getCatId.apply("Bebidas Calientes");
 		int catFriasCafe = getCatId.apply("Frías de Café");
 		int catJugos = getCatId.apply("Jugos - Frappés - Malteadas");
 		int catSodas = getCatId.apply("Sodas Italianas");
@@ -106,106 +100,54 @@ public class KaffaServerApplication {
 		int catSandwich = getCatId.apply("Sandwich y Wraps");
 		int catDesgranados = getCatId.apply("Desgranados");
 
-		// ===== BASE DE CAFÉ =====
-		// Americano = taza de café negro
-		dao.insertRaw("Americano", "Café negro suave", 5500, catCafe,
-				"https://images.unsplash.com/photo-1497515114889-3f74a90f5840?w=400&h=300&fit=crop");
-		// Espresso = shot de espresso
-		dao.insertRaw("Espresso", "Café concentrado", 5000, catCafe,
-				"https://images.unsplash.com/photo-1510707577719-ae7c14805e3a?w=400&h=300&fit=crop");
-		// Espresso macchiato = espresso con espuma
-		dao.insertRaw("Espresso Macchiato", "Espresso con un toque de leche", 5500, catCafe,
-				"https://images.unsplash.com/photo-1485808191679-5f86510681a2?w=400&h=300&fit=crop");
-		// Italiano = café corto
-		dao.insertRaw("Italiano", "Café corto intenso", 5500, catCafe,
-				"https://images.unsplash.com/photo-1514432324607-a09d9b4aefda?w=400&h=300&fit=crop");
-		// Campesino = café con panela
-		dao.insertRaw("Campesino", "Café endulzado con panela", 6500, catCafe,
-				"https://images.unsplash.com/photo-1442512595331-e89e73853f31?w=400&h=300&fit=crop");
-		// Carajillo = café con licor (vidrio)
-		dao.insertRaw("Carajillo", "Café con licor", 10000, catCafe,
-				"https://images.unsplash.com/photo-1610889556528-9a770e32642f?w=400&h=300&fit=crop");
-		// Latte = latte art
-		dao.insertRaw("Latte", "Café con leche cremosa", 7000, catCafe,
-				"https://images.unsplash.com/photo-1570968915860-54d5c301fa9f?w=400&h=300&fit=crop");
-		// Bombón = café con leche condensada
-		dao.insertRaw("Bombón", "Café dulce con leche condensada", 7500, catCafe,
-				"https://images.unsplash.com/photo-1534687941688-651ccaafbff8?w=400&h=300&fit=crop");
-		// Café Irlandés = irish coffee con crema
-		dao.insertRaw("Café Irlandés", "Con whisky y crema", 10000, catCafe,
-				"https://images.unsplash.com/photo-1521302200778-33500795e128?w=400&h=300&fit=crop");
-		// Capuccino = cappuccino con espuma
-		dao.insertRaw("Capuccino tradicional", "Espresso, leche y espuma", 8000, catCafe,
-				"https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=400&h=300&fit=crop");
-		// Capuccino Amareto
-		dao.insertRaw("Capuccino Amareto", "Con licor de amaretto", 10000, catCafe,
-				"https://images.unsplash.com/photo-1517701604599-bb29b565090c?w=400&h=300&fit=crop");
-		// Capuccino baileys
-		dao.insertRaw("Capuccino baileys", "Con crema de whisky", 10500, catCafe,
-				"https://images.unsplash.com/photo-1534778101976-62847782c213?w=400&h=300&fit=crop");
-		// Mocaccino = café con chocolate
-		dao.insertRaw("Mocaccino tradicional", "Café con chocolate", 8000, catCafe,
-				"https://images.unsplash.com/photo-1578314675249-a6910f80cc4e?w=400&h=300&fit=crop");
-		dao.insertRaw("Mocaccino con licor", "Con toque de licor", 11500, catCafe,
-				"https://images.unsplash.com/photo-1611162616475-46b635cb6868?w=400&h=300&fit=crop");
+		// ===== BEBIDAS CALIENTES =====
+		dao.insertRaw("Americano", "", 5500.0, catBebidasCalientes, null);
+		dao.insertRaw("Espresso", "", 5000.0, catBebidasCalientes, null);
+		dao.insertRaw("Espresso Macchiato", "", 5500.0, catBebidasCalientes, null);
+		dao.insertRaw("Italiano", "", 5500.0, catBebidasCalientes, null);
+		dao.insertRaw("Campesino", "", 6500.0, catBebidasCalientes, null);
+		dao.insertRaw("Carajillo", "", 10000.0, catBebidasCalientes, null);
+		dao.insertRaw("Latte", "", 7000.0, catBebidasCalientes, null);
+		dao.insertRaw("Bombón", "", 7500.0, catBebidasCalientes, null);
+		dao.insertRaw("Café Irlandés", "", 10000.0, catBebidasCalientes, null);
+		dao.insertRaw("Capuccino tradicional", "", 8000.0, catBebidasCalientes, null);
+		dao.insertRaw("Capuccino Amareto", "", 10000.0, catBebidasCalientes, null);
+		dao.insertRaw("Capuccino baileys", "", 10500.0, catBebidasCalientes, null);
+		dao.insertRaw("Mocaccino tradicional", "", 8000.0, catBebidasCalientes, null);
+		dao.insertRaw("Mocaccino con licor", "", 11500.0, catBebidasCalientes, null);
 
-		// ===== CALIENTES =====
-		// Milo = bebida de chocolate caliente
-		dao.insertRaw("Milo", "Bebida caliente de malta y chocolate", 9500, catCalientes,
-				"https://images.unsplash.com/photo-1517578239113-b03992dcdd25?w=400&h=300&fit=crop");
-		// Chocolate agua = chocolate caliente
-		dao.insertRaw("Chocolate agua", "Tradicional en agua", 6500, catCalientes,
-				"https://images.unsplash.com/photo-1542990253-0d0f5be5f0ed?w=400&h=300&fit=crop");
-		// Chocolate leche
-		dao.insertRaw("Chocolate leche", "Tradicional en leche", 7500, catCalientes,
-				"https://images.unsplash.com/photo-1567206563064-6f60f40a2b57?w=400&h=300&fit=crop");
-		// Choco masmelo = hot chocolate con marshmallows
-		dao.insertRaw("Choco masmelo", "Chocolate con masmelos", 10000, catCalientes,
-				"https://images.unsplash.com/photo-1513558161293-cdaf765ed2fd?w=400&h=300&fit=crop");
-		// Té chai
-		dao.insertRaw("Té chai", "Té especiado con leche", 8500, catCalientes,
-				"https://images.unsplash.com/photo-1571934811356-5cc061b6821f?w=400&h=300&fit=crop");
-		// Matcha = taza de matcha verde
-		dao.insertRaw("Té Matcha", "Té verde 100% natural", 8500, catCalientes,
-				"https://images.unsplash.com/photo-1515823064-d6e0c04616a7?w=400&h=300&fit=crop");
-		// Golden milk = leche dorada
-		dao.insertRaw("Leche dorada", "Cúrcuma, jengibre, canela, pimienta negra, cardamomo, anís estrellado", 8500,
-				catCalientes, "https://images.unsplash.com/photo-1611241893603-3c228ee1ce68?w=400&h=300&fit=crop");
+		// ===== Chocolates y Milo =====
+		dao.insertRaw("Milo", "", 9500.0, catBebidasCalientes, null);
+		dao.insertRaw("Chocolate en agua", "", 6500.0, catBebidasCalientes, null);
+		dao.insertRaw("Chocolate en leche", "", 7500.0, catBebidasCalientes, null);
+		dao.insertRaw("Choco masmelo", "", 10000.0, catBebidasCalientes, null);
 
-		// ===== COLADAS =====
-		dao.insertRaw("Colada tradicional", "Receta de la casa", 9000, catColadas,
-				"https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&h=300&fit=crop");
-		dao.insertRaw("Colada de plátano", "Sabor auténtico", 9000, catColadas,
-				"https://images.unsplash.com/photo-1481671703460-040cb8a2d909?w=400&h=300&fit=crop");
-		dao.insertRaw("Colada con café", "Energizante", 10000, catColadas,
-				"https://images.unsplash.com/photo-1504630083234-14187a9df0f5?w=400&h=300&fit=crop");
-		dao.insertRaw("Colada con milo", "Dulce y cremosa", 10500, catColadas,
-				"https://images.unsplash.com/photo-1590080875515-8a3a8dc5735e?w=400&h=300&fit=crop");
+		// ===== Tés y Funcionales =====
+		dao.insertRaw("Té chai", "", 8500.0, catBebidasCalientes, null);
+		dao.insertRaw("Té Matcha", "Té verde 100% natural", 8500.0, catBebidasCalientes, null);
+		dao.insertRaw("Leche dorada", "Mezcla de cúrcuma, jengibre, canela, pimienta negra, cardamomo, anís estrellado", 8500.0, catBebidasCalientes, null);
 
-		// ===== HERVIDOS Y AROMÁTICAS =====
-		// Aromatica = taza de té de hierbas
-		dao.insertRaw("Aromática", "Bolsita ó panelita", 3800, catAromas,
-				"https://images.unsplash.com/photo-1564890369478-c89ca6d9cde9?w=400&h=300&fit=crop");
-		// Hervidos = agua de frutas caliente
-		dao.insertRaw("Hervidos de frutas", "Amarillos o rojos", 9000, catAromas,
-				"https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=400&h=300&fit=crop");
-		// Tetera = teapot
-		dao.insertRaw("Tetera de Té natural", "Yerbabuena, flor de jamaica, canela y frutos del bosque", 10000,
-				catAromas, "https://images.unsplash.com/photo-1597318181409-cf64d0b5d8a2?w=400&h=300&fit=crop");
-		// Canelazo = bebida caliente colombiana
-		dao.insertRaw("Canelazo tradicional", "Bebida caliente con aguardiente", 10000, catAromas,
-				"https://images.unsplash.com/photo-1544787219-7f47ccb76574?w=400&h=300&fit=crop");
-		dao.insertRaw("Canelazo de frutos", "Rojos ó amarillos", 11000, catAromas,
-				"https://images.unsplash.com/photo-1576092768241-dec231879fc3?w=400&h=300&fit=crop");
-		// Agua de panela
-		dao.insertRaw("Agua de panela", "Caliente y reconfortante", 5000, catAromas,
-				"https://images.unsplash.com/photo-1558160074-4d7d8bdf4256?w=400&h=300&fit=crop");
-		dao.insertRaw("Agua de panela con queso", "Clásica combinación", 10000, catAromas,
-				"https://images.unsplash.com/photo-1486297678162-eb2a19b0a32d?w=400&h=300&fit=crop");
-		// Migao = plato con pan y chocolate
-		dao.insertRaw("Migao",
-				"Chocolate en leche y panela con buñuelo, pandebono, pandeyuca, ducales, palito tostado, queso, leche en polvo",
-				19500, catAromas, "https://images.unsplash.com/photo-1509440159596-0249088772ff?w=400&h=300&fit=crop");
+		// ===== Aromáticas y Hervidos =====
+		dao.insertRaw("Aromática", "Bolsita o panelita", 3800.0, catBebidasCalientes, null);
+		dao.insertRaw("Hervidos de frutas", "Amarillos, rojos", 9000.0, catBebidasCalientes, null);
+
+		// ===== Coladas =====
+		dao.insertRaw("Colada tradicional", "", 9000.0, catBebidasCalientes, null);
+		dao.insertRaw("Colada de plátano", "", 9000.0, catBebidasCalientes, null);
+		dao.insertRaw("Colada con café", "", 10000.0, catBebidasCalientes, null);
+		dao.insertRaw("Colada con milo", "", 10500.0, catBebidasCalientes, null);
+
+		// ===== Experiencia Tetera =====
+		dao.insertRaw("Experiencia Tetera", "Té 100% natural de hierbabuena, flor de jamaica, canela y frutos del bosque", 10000.0, catBebidasCalientes, null);
+
+		// ===== Canelazos =====
+		dao.insertRaw("Canelazo tradicional", "", 10000.0, catBebidasCalientes, null);
+		dao.insertRaw("Canelazo de frutos rojos o amarillos", "", 11000.0, catBebidasCalientes, null);
+
+		// ===== Tradición =====
+		dao.insertRaw("Agua de panela", "", 5000.0, catBebidasCalientes, null);
+		dao.insertRaw("Agua de panela con queso", "", 10000.0, catBebidasCalientes, null);
+		dao.insertRaw("Migao", "Migao con chocolate en leche y panela. Incluye buñuelo, pandebono, pandeyuca, ducales, palito tostado, queso, leche en polvo", 19500.0, catBebidasCalientes, null);
 
 		// ===== FRÍAS DE CAFÉ =====
 		// Cold brew = café frío en vaso
